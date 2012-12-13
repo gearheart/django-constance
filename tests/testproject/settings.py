@@ -11,11 +11,14 @@ DATABASES = {
     }
 }
 
+STATIC_URL = '/static/'
+
 INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.admin',
+    'django.contrib.staticfiles',
 
     'constance',
     'constance.backends.database',
@@ -38,4 +41,5 @@ CONSTANCE_CONFIG = {
     'FLOAT_VALUE': (3.1415926536, 'PI'),
     'DATE_VALUE': (date(2010, 12, 24),  'Merry Chrismas'),
     'TIME_VALUE': (time(23, 59, 59),  'And happy New Year'),
+    'INT_VALUE': (1, 'some int'),
 }
