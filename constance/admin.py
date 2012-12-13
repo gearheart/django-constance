@@ -17,35 +17,70 @@ from django.utils.translation import ugettext as _
 from constance import config, settings
 
 
-NUMERIC_WIDGET = forms.TextInput(attrs={'size': 10})
+class FieldType(object):
+    def __init__(self, form_field, form_field_kwargs=None):
+        self.form_field = form_field
+        self.form_field_kwargs = form_field_kwargs or {}
 
-INTEGER_LIKE = (fields.IntegerField, {'widget': NUMERIC_WIDGET})
-STRING_LIKE = (fields.CharField, {'widget': forms.Textarea(attrs={'rows': 3})})
+    def get_form_field(self, name, label=None, help_text=None, **kwargs):
+        return self.form_field(label=label or name, help_text=help_text, **self.form_field_kwargs)
+
+    def load_value(self, value):
+        return value
+
+    def store_value(self, value):
+        return value
+
+
+NUMERIC_WIDGET = forms.TextInput(attrs={'size': 10})
+INTEGER_LIKE = FieldType(fields.IntegerField, {'widget': NUMERIC_WIDGET})
+STRING_LIKE = FieldType(fields.CharField, {'widget': forms.Textarea(attrs={'rows': 3})})
 
 FIELDS = {
-    bool: (fields.BooleanField, {'required': False}),
+    bool: FieldType(fields.BooleanField, {'required': False}),
     int: INTEGER_LIKE,
     long: INTEGER_LIKE,
-    Decimal: (fields.DecimalField, {'widget': NUMERIC_WIDGET}),
+    Decimal: FieldType(fields.DecimalField, {'widget': NUMERIC_WIDGET}),
     str: STRING_LIKE,
     unicode: STRING_LIKE,
-    datetime: (fields.DateTimeField, {'widget': widgets.AdminSplitDateTime}),
-    date: (fields.DateField, {'widget': widgets.AdminDateWidget}),
-    time: (fields.TimeField, {'widget': widgets.AdminTimeWidget}),
-    float: (fields.FloatField, {'widget': NUMERIC_WIDGET}),
+    datetime: FieldType(fields.DateTimeField, {'widget': widgets.AdminSplitDateTime}),
+    date: FieldType(fields.DateField, {'widget': widgets.AdminDateWidget}),
+    time: FieldType(fields.TimeField, {'widget': widgets.AdminTimeWidget}),
+    float: FieldType(fields.FloatField, {'widget': NUMERIC_WIDGET}),
 }
+
+
+def register_field_type(type_name, field_type):
+    FIELDS[type_name] = field_type
+
+
+def _get_field_type(default, type_name):
+    if type_name and type_name in FIELDS:
+        return FIELDS[type_name]
+
+    return FIELDS[type(default)]
+
+
+def iterate_config():
+    for name, data in settings.CONFIG.items():
+        if isinstance(data, tuple):
+            data = {'default': data[0], 'help_text': data[1]}
+
+        field_type = _get_field_type(data['default'], data.get('type'))
+        yield name, data, field_type
 
 
 class ConstanceForm(forms.Form):
     def __init__(self, *args, **kwargs):
         super(ConstanceForm, self).__init__(*args, **kwargs)
-        for name, (default, help_text) in settings.CONFIG.items():
-            field_class, kwargs = FIELDS[type(default)]
-            self.fields[name] = field_class(label=name, **kwargs)
+        for name, data, field_type in iterate_config():
+            if name in self.initial:
+                self.initial[name] = field_type.load_value(self.initial[name])
+            self.fields[name] = field_type.get_form_field(name, **data)
 
     def save(self):
-        for name in self.cleaned_data:
-            setattr(config, name, self.cleaned_data[name])
+        for name, data, field_type in iterate_config():
+            setattr(config, name, field_type.store_value(self.cleaned_data[name]))
 
 
 class ConstanceAdmin(admin.ModelAdmin):
@@ -66,8 +101,8 @@ class ConstanceAdmin(admin.ModelAdmin):
     @csrf_protect_m
     def changelist_view(self, request, extra_context=None):
         # First load a mapping between config name and default value
-        default_initial = ((name, default)
-            for name, (default, help_text) in settings.CONFIG.iteritems())
+        default_initial = ((name, data['default'])
+            for name, data, field_type in iterate_config())
         # Then update the mapping with actually values from the backend
         initial = dict(default_initial,
             **dict(config._backend.mget(settings.CONFIG.keys())))
@@ -86,17 +121,17 @@ class ConstanceAdmin(admin.ModelAdmin):
             'form': form,
             'media': self.media + form.media,
         }
-        for name, (default, help_text) in settings.CONFIG.iteritems():
-            # First try to load the value from the actual backend
+        for name, data, field_type in iterate_config():
+            default = field_type.load_value(data['default'])
+
             value = initial.get(name)
-            # Then if the returned value is None, get the default
             if value is None:
                 value = getattr(config, name)
+            value = field_type.load_value(value)
+
             context['config'].append({
                 'name': name,
                 'default': localize(default),
-                'help_text': _(help_text),
-                'value': localize(value),
                 'modified': value != default,
                 'form_field': form[name]
             })

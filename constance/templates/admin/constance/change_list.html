@@ -41,8 +41,8 @@
                 </thead>
                 {% for item in config %}
                 <tr class="{% cycle 'row1' 'row2' %}">
-                    <th>{{item.name}}
-                        <div class="help">{{item.help_text}}</div>
+                    <th>{% trans item.form_field.label %}
+                        <div class="help">{% trans item.form_field.help_text %}</div>
                     </th>
                     <td>
                         {{ item.default }}

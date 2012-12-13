@@ -18,6 +18,14 @@ from testproject.test_app.tests.helpers import FakeRequest
 
 class TestStorage(object):
 
+    def test_dict_specs(self):
+        # read defaults
+        del sys.modules['constance']
+        from constance import config
+        self.assertEquals(config.DICT_INT_VALUE, 1)
+        config.DICT_INT_VALUE = 2
+        self.assertEquals(config.DICT_INT_VALUE, 2)
+
     def test_store(self):
         # read defaults
         del sys.modules['constance']

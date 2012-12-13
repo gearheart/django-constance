@@ -42,4 +42,5 @@ CONSTANCE_CONFIG = {
     'DATE_VALUE': (date(2010, 12, 24),  'Merry Chrismas'),
     'TIME_VALUE': (time(23, 59, 59),  'And happy New Year'),
     'INT_VALUE': (1, 'some int'),
+    'DICT_INT_VALUE': {'default': 1, 'help_text': 'some int'},
 }
