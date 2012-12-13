@@ -155,9 +155,9 @@ class ConstanceAdmin(admin.ModelAdmin):
 
 class Config(object):
     class Meta(object):
-        app_label = 'constance'
-        module_name = 'config'
-        verbose_name_plural = 'config'
+        app_label = _('constance')
+        module_name = _('config')
+        verbose_name_plural = _('config')
         get_ordered_objects = lambda x: False
         abstract = False
     _meta = Meta()
